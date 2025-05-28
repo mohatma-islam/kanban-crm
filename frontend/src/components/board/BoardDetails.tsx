@@ -429,7 +429,7 @@ const BoardDetail = () => {
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(5);
-  const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
+  const [selectedUserIds, setSelectedUserIds] = useState<number[]>([]);
   const [showUnassignedOnly, setShowUnassignedOnly] = useState(false);
 
   
@@ -1103,7 +1103,18 @@ const BoardDetail = () => {
   
   const toggleUnassignedFilter = () => {
     setShowUnassignedOnly(!showUnassignedOnly);
-    setSelectedUserId(null);
+    setSelectedUserIds([]);
+    setCurrentPage(1);
+  };
+  
+  const handleSelectAllUsers = () => {
+    setSelectedUserIds(users.map(user => user.id));
+    setCurrentPage(1);
+  };
+  
+  const handleClearAllUsers = () => {
+    setSelectedUserIds([]);
+    setShowUnassignedOnly(false);
     setCurrentPage(1);
   };
   
@@ -1126,11 +1137,11 @@ const BoardDetail = () => {
       currentBoard.columns.forEach(column => {
         if (column.tasks) {
           column.tasks.forEach(task => {
-            // Apply user filter
+            // Apply user filter - more flexible logic to combine filters
             const matchesUserFilter = 
-              (selectedUserId === null && !showUnassignedOnly) || // No filter
-              (selectedUserId !== null && task.user_id === selectedUserId) || // User filter
-              (showUnassignedOnly && !task.user_id); // Unassigned filter
+              (selectedUserIds.length === 0 && !showUnassignedOnly) || // No filter
+              (showUnassignedOnly && !task.user_id) || // Unassigned filter
+              (selectedUserIds.length > 0 && selectedUserIds.some(id => task.user_id === id)); // User filter
             
             // Apply search filter
             const matchesSearchFilter = 
@@ -1151,7 +1162,7 @@ const BoardDetail = () => {
     }
     
     return tasks;
-  }, [currentBoard, selectedUserId, showUnassignedOnly, searchQuery]);
+  }, [currentBoard, selectedUserIds, showUnassignedOnly, searchQuery]);
   
   // Filtered board columns with filtered tasks
   const filteredColumns = useMemo(() => {
@@ -1159,11 +1170,11 @@ const BoardDetail = () => {
     
     return currentBoard.columns.map(column => {
       const filteredColumnTasks = column.tasks?.filter(task => {
-        // Apply user filter
+        // Apply user filter - more flexible logic to combine filters
         const matchesUserFilter = 
-          (selectedUserId === null && !showUnassignedOnly) || // No filter
-          (selectedUserId !== null && task.user_id === selectedUserId) || // User filter
-          (showUnassignedOnly && !task.user_id); // Unassigned filter
+          (selectedUserIds.length === 0 && !showUnassignedOnly) || // No filter
+          (showUnassignedOnly && !task.user_id) || // Unassigned filter
+          (selectedUserIds.length > 0 && selectedUserIds.some(id => task.user_id === id)); // User filter
         
         // Apply search filter
         const matchesSearchFilter = 
@@ -1179,7 +1190,7 @@ const BoardDetail = () => {
         tasks: filteredColumnTasks || []
       };
     });
-  }, [currentBoard, selectedUserId, showUnassignedOnly, searchQuery]);
+  }, [currentBoard, selectedUserIds, showUnassignedOnly, searchQuery]);
   
   // Flatten and sort tasks for table view with pagination
   const paginatedTasks = useMemo(() => {
@@ -1501,18 +1512,41 @@ const BoardDetail = () => {
                 <div 
                   key={user.id}
                   className={`w-8 h-8 rounded-full flex items-center justify-center cursor-pointer ${
-                    selectedUserId === user.id 
+                    selectedUserIds.some(id => id === user.id) 
                       ? 'bg-blue-500 text-white' 
                       : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
                   }`}
-                  onClick={() => setSelectedUserId(selectedUserId === user.id ? null : user.id)}
+                  onClick={() => setSelectedUserIds(selectedUserIds.some(id => id === user.id) ? selectedUserIds.filter(id => id !== user.id) : [...selectedUserIds, user.id])}
                   title={`Show tasks assigned to ${user.name}`}
                   tabIndex={0}
-                  onKeyDown={(e) => e.key === 'Enter' && setSelectedUserId(selectedUserId === user.id ? null : user.id)}
+                  onKeyDown={(e) => e.key === 'Enter' && setSelectedUserIds(selectedUserIds.some(id => id === user.id) ? selectedUserIds.filter(id => id !== user.id) : [...selectedUserIds, user.id])}
                 >
                   {getUserInitials(user.name)}
                 </div>
               ))}
+              
+              {/* Quick action buttons */}
+              {users.length > 1 && (
+                <>
+                  <div className="w-px h-4 bg-gray-300 mx-1"></div>
+                  <button
+                    onClick={handleSelectAllUsers}
+                    className="px-2 py-1 text-xs bg-gray-100 text-gray-600 rounded hover:bg-gray-200 transition-colors"
+                    title="Select all users"
+                    tabIndex={0}
+                  >
+                    All
+                  </button>
+                  <button
+                    onClick={handleClearAllUsers}
+                    className="px-2 py-1 text-xs bg-gray-100 text-gray-600 rounded hover:bg-gray-200 transition-colors"
+                    title="Clear all filters"
+                    tabIndex={0}
+                  >
+                    Clear
+                  </button>
+                </>
+              )}
             </div>
           </div>
         )}
@@ -1624,19 +1658,32 @@ const BoardDetail = () => {
       </div>
       
       {/* Filter indicator */}
-      {(selectedUserId !== null || showUnassignedOnly || searchQuery) && (
+      {(selectedUserIds.length > 0 || showUnassignedOnly || searchQuery) && (
         <div className="bg-blue-50 border border-blue-200 rounded px-4 py-2 text-sm text-blue-700 flex items-center">
           <FunnelIcon className="h-5 w-5 mr-2" />
           <span>
             {searchQuery && `Searching for "${searchQuery}"`}
-            {(searchQuery && (showUnassignedOnly || selectedUserId !== null)) && ' • '}
-            {showUnassignedOnly && 'Unassigned tasks only'}
-            {(selectedUserId !== null && !showUnassignedOnly) && `Tasks assigned to ${users.find(u => u.id === selectedUserId)?.name || 'Unknown user'}`}
+            {(searchQuery && (showUnassignedOnly || selectedUserIds.length > 0)) && ' • '}
+            {showUnassignedOnly && selectedUserIds.length > 0 && `Unassigned tasks and tasks assigned to ${
+              selectedUserIds.length === 1 
+                ? users.find(u => u.id === selectedUserIds[0])?.name || 'Unknown user'
+                : selectedUserIds.length === users.length 
+                  ? 'all users'
+                  : `${selectedUserIds.length} users`
+            }`}
+            {showUnassignedOnly && selectedUserIds.length === 0 && 'Unassigned tasks only'}
+            {!showUnassignedOnly && selectedUserIds.length > 0 && `Tasks assigned to ${
+              selectedUserIds.length === 1 
+                ? users.find(u => u.id === selectedUserIds[0])?.name || 'Unknown user'
+                : selectedUserIds.length === users.length 
+                  ? 'all users'
+                  : `${selectedUserIds.length} users`
+            }`}
           </span>
           <button 
             className="ml-auto text-blue-500 hover:text-blue-700"
             onClick={() => { 
-              setSelectedUserId(null); 
+              setSelectedUserIds([]);
               setShowUnassignedOnly(false);
               setSearchQuery('');
             }}
