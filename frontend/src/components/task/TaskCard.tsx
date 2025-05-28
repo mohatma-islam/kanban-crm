@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import type { Task, User } from '../../types/index';
 import useUserStore from '../../store/userStore';
 import useTaskStore from '../../store/taskStore';
@@ -32,7 +33,9 @@ const TaskCard = ({
   const { users, fetchUsers, isLoading: usersLoading } = useUserStore();
   const { updateTask } = useTaskStore();
   const [showAssignDropdown, setShowAssignDropdown] = useState(false);
+  const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0 });
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const avatarRef = useRef<HTMLDivElement>(null);
   
   useEffect(() => {
     fetchUsers();
@@ -40,7 +43,8 @@ const TaskCard = ({
   
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node) &&
+          avatarRef.current && !avatarRef.current.contains(event.target as Node)) {
         setShowAssignDropdown(false);
       }
     };
@@ -110,8 +114,21 @@ const TaskCard = ({
     }
   };
   
+  const updateDropdownPosition = () => {
+    if (avatarRef.current) {
+      const rect = avatarRef.current.getBoundingClientRect();
+      setDropdownPosition({
+        top: rect.bottom + window.scrollY - 0.5, // 4px gap below avatar
+        left: rect.right + window.scrollX - 192 // 192px = w-48 (12rem)
+      });
+    }
+  };
+  
   const toggleDropdown = (e: React.MouseEvent) => {
     e.stopPropagation();
+    if (!showAssignDropdown) {
+      updateDropdownPosition();
+    }
     setShowAssignDropdown(!showAssignDropdown);
   };
   
@@ -200,6 +217,7 @@ const TaskCard = ({
         <div className="relative" ref={dropdownRef}>
           {task.user ? (
             <div 
+              ref={avatarRef}
               className="w-8 h-8 bg-blue-500 text-white rounded-full flex items-center justify-center text-sm font-medium cursor-pointer"
               onClick={toggleDropdown}
               tabIndex={0}
@@ -210,6 +228,7 @@ const TaskCard = ({
             </div>
           ) : (
             <div 
+              ref={avatarRef}
               className="w-8 h-8 bg-gray-200 text-gray-500 rounded-full flex items-center justify-center cursor-pointer"
               onClick={toggleDropdown}
               tabIndex={0}
@@ -217,39 +236,6 @@ const TaskCard = ({
               aria-label="Assign user"
             >
               <UserIcon className="h-5 w-5" />
-            </div>
-          )}
-          
-          {showAssignDropdown && (
-            <div className="absolute right-0 mt-1 bg-white border border-gray-200 rounded-md shadow-lg z-20 w-48 assignee-dropdown">
-              <div className="py-1">
-                <div 
-                  className="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer flex items-center"
-                  onClick={() => handleUserAssign(null)}
-                  tabIndex={0}
-                  onKeyDown={(e) => e.key === 'Enter' && handleUserAssign(null)}
-                >
-                  <span>Unassigned</span>
-                </div>
-                {usersLoading ? (
-                  <div className="px-4 py-2 text-sm text-gray-500">Loading...</div>
-                ) : (
-                  users.map(user => (
-                    <div 
-                      key={user.id}
-                      className="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer flex items-center"
-                      onClick={() => handleUserAssign(user)}
-                      tabIndex={0}
-                      onKeyDown={(e) => e.key === 'Enter' && handleUserAssign(user)}
-                    >
-                      <div className="w-6 h-6 bg-blue-500 text-white rounded-full flex items-center justify-center text-xs mr-2">
-                        {getUserInitials(user.name)}
-                      </div>
-                      <span>{user.name}</span>
-                    </div>
-                  ))
-                )}
-              </div>
             </div>
           )}
         </div>
@@ -286,6 +272,49 @@ const TaskCard = ({
           <ChatBubbleLeftRightIcon className="h-4 w-4 mr-1" />
           {task.comments.length} comment{task.comments.length !== 1 ? 's' : ''}
         </div>
+      )}
+      
+      {/* Portal the dropdown to document body */}
+      {showAssignDropdown && createPortal(
+        <div 
+          ref={dropdownRef}
+          className="fixed bg-white border border-gray-200 rounded-md shadow-xl w-48 assignee-dropdown z-[9999]" 
+          style={{ 
+            top: dropdownPosition.top,
+            left: dropdownPosition.left,
+            zIndex: 9999 
+          }}
+        >
+          <div className="py-1">
+            <div 
+              className="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer flex items-center"
+              onClick={() => handleUserAssign(null)}
+              tabIndex={0}
+              onKeyDown={(e) => e.key === 'Enter' && handleUserAssign(null)}
+            >
+              <span>Unassigned</span>
+            </div>
+            {usersLoading ? (
+              <div className="px-4 py-2 text-sm text-gray-500">Loading...</div>
+            ) : (
+              users.map(user => (
+                <div 
+                  key={user.id}
+                  className="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer flex items-center"
+                  onClick={() => handleUserAssign(user)}
+                  tabIndex={0}
+                  onKeyDown={(e) => e.key === 'Enter' && handleUserAssign(user)}
+                >
+                  <div className="w-6 h-6 bg-blue-500 text-white rounded-full flex items-center justify-center text-xs mr-2">
+                    {getUserInitials(user.name)}
+                  </div>
+                  <span>{user.name}</span>
+                </div>
+              ))
+            )}
+          </div>
+        </div>,
+        document.body
       )}
     </div>
   );

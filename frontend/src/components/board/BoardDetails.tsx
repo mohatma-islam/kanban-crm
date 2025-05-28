@@ -39,8 +39,13 @@ const SortableTask = ({
   onCancelTitleEdit, 
   onTitleChange,
   onAssignUser,
-  onDeleteTask 
-}: SortableTaskProps) => {
+  onDeleteTask,
+  dragOverInfo,
+  activeDragData
+}: SortableTaskProps & { 
+  dragOverInfo?: { columnId: number; taskId?: number; position?: 'before' | 'after' } | null;
+  activeDragData?: any;
+}) => {
   const {
     attributes,
     listeners,
@@ -79,33 +84,59 @@ const SortableTask = ({
     onClick();
   };
   
+  // Check if this task should show drop indicators
+  const showDropIndicator = dragOverInfo && 
+    dragOverInfo.taskId === id && 
+    activeDragData && 
+    activeDragData.id !== id && // Don't show indicator for the dragged task itself
+    activeDragData.columnId !== task.columnId; // Only show for cross-column drags
+  
   return (
-    <div 
-      ref={setNodeRef} 
-      style={style} 
-      className={`${isDragging ? 'cursor-grabbing' : 'cursor-grab hover:cursor-grab'}
-       transition-all duration-200
-       hover:border-indigo-600 hover:border-dashed
-       hover:rounded-lg bg-white/95 backdrop-blur-sm
-       border-2 border-transparent
-       ${isDragging ? 'shadow-2xl border-indigo-300' : ''}
-      `}
-      {...attributes} 
-      {...listeners}
-      onClick={handleTaskClick}
-    >
-      <TaskCard 
-        task={task} 
-        onClick={() => {}} // Let the wrapper handle clicks
-        onEditTitle={onEditTitle}
-        editingTaskTitle={editingTaskTitle}
-        editingTaskTitleValue={editingTaskTitleValue}
-        onSaveTitle={onSaveTitle}
-        onCancelTitleEdit={onCancelTitleEdit}
-        onTitleChange={onTitleChange}
-        onAssignUser={onAssignUser}
-        onDeleteTask={onDeleteTask}
-      />
+    <div className="relative">
+      {/* Drop indicator - before */}
+      {showDropIndicator && dragOverInfo.position === 'before' && (
+        <div className="absolute -top-2 left-0 right-0 h-1 bg-gradient-to-r from-indigo-400 to-purple-500 rounded-full z-10 shadow-lg">
+          <div className="absolute -left-1 -top-1 w-3 h-3 bg-indigo-500 rounded-full border-2 border-white shadow-md"></div>
+          <div className="absolute -right-1 -top-1 w-3 h-3 bg-purple-500 rounded-full border-2 border-white shadow-md"></div>
+        </div>
+      )}
+      
+      <div 
+        ref={setNodeRef} 
+        style={style} 
+        className={`${isDragging ? 'cursor-grabbing' : 'cursor-grab hover:cursor-grab'}
+         transition-all duration-200
+         hover:border-indigo-600 hover:border-dashed
+         hover:rounded-lg bg-white/95 backdrop-blur-sm
+         border-2 border-transparent
+         ${isDragging ? 'shadow-2xl border-indigo-300' : ''}
+         ${showDropIndicator ? 'transform scale-105' : ''}
+        `}
+        {...attributes} 
+        {...listeners}
+        onClick={handleTaskClick}
+      >
+        <TaskCard 
+          task={task} 
+          onClick={() => {}} // Let the wrapper handle clicks
+          onEditTitle={onEditTitle}
+          editingTaskTitle={editingTaskTitle}
+          editingTaskTitleValue={editingTaskTitleValue}
+          onSaveTitle={onSaveTitle}
+          onCancelTitleEdit={onCancelTitleEdit}
+          onTitleChange={onTitleChange}
+          onAssignUser={onAssignUser}
+          onDeleteTask={onDeleteTask}
+        />
+      </div>
+      
+      {/* Drop indicator - after */}
+      {showDropIndicator && dragOverInfo.position === 'after' && (
+        <div className="absolute -bottom-2 left-0 right-0 h-1 bg-gradient-to-r from-indigo-400 to-purple-500 rounded-full z-10 shadow-lg">
+          <div className="absolute -left-1 -top-1 w-3 h-3 bg-indigo-500 rounded-full border-2 border-white shadow-md"></div>
+          <div className="absolute -right-1 -top-1 w-3 h-3 bg-purple-500 rounded-full border-2 border-white shadow-md"></div>
+        </div>
+      )}
     </div>
   );
 };
@@ -172,51 +203,85 @@ const ColumnDropZone = ({ columnId, children, isEmpty }: { columnId: number; chi
 };
 
 // Droppable zone component for empty columns
-const EmptyColumnDropZone = ({ columnId }: { columnId: number }) => {
+const EmptyColumnDropZone = ({ columnId, dragOverInfo, activeDragData }: { 
+  columnId: number; 
+  dragOverInfo?: { columnId: number; taskId?: number; position?: 'before' | 'after' } | null;
+  activeDragData?: any;
+}) => {
   const { isOver, setNodeRef } = useDroppable({
     id: getEmptyColumnDropId(columnId),
   });
+  
+  // Check if we're dragging a task from another column over this empty column
+  const isFromAnotherColumn = activeDragData && 
+    activeDragData.columnId !== columnId && 
+    (isOver || (dragOverInfo && dragOverInfo.columnId === columnId && !dragOverInfo.taskId));
   
   return (
     <div 
       ref={setNodeRef}
       className={`h-24 border-2 border-dashed rounded-xl flex items-center justify-center text-sm font-medium transition-all duration-200
-        ${isOver 
-          ? 'border-indigo-400 bg-gradient-to-br from-indigo-50 to-purple-50 text-indigo-600 scale-105 shadow-lg' 
+        ${isOver || isFromAnotherColumn
+          ? 'border-indigo-400 bg-gradient-to-br from-indigo-50 to-purple-50 text-indigo-600 scale-105 shadow-lg transform' 
           : 'border-slate-300 hover:border-indigo-400 hover:bg-gradient-to-br hover:from-indigo-50 hover:to-purple-50 text-slate-400 hover:text-indigo-600'
         }`}
     >
       <div className="flex flex-col items-center">
-        <div className={`w-8 h-8 rounded-full flex items-center justify-center mb-1 ${
-          isOver ? 'bg-indigo-100' : 'bg-slate-100'
+        <div className={`w-8 h-8 rounded-full flex items-center justify-center mb-1 transition-all duration-200 ${
+          isOver || isFromAnotherColumn ? 'bg-indigo-100 scale-110' : 'bg-slate-100'
         }`}>
           <PlusIcon className="h-5 w-5" />
         </div>
-        <span>{isOver ? 'Release to drop' : 'Drop task here'}</span>
+        <span>{isOver || isFromAnotherColumn ? 'Release to drop' : 'Drop task here'}</span>
+        {isFromAnotherColumn && (
+          <div className="flex space-x-1 mt-1">
+            <div className="w-1 h-1 bg-indigo-400 rounded-full animate-pulse"></div>
+            <div className="w-1 h-1 bg-indigo-400 rounded-full animate-pulse" style={{ animationDelay: '0.2s' }}></div>
+            <div className="w-1 h-1 bg-indigo-400 rounded-full animate-pulse" style={{ animationDelay: '0.4s' }}></div>
+          </div>
+        )}
       </div>
     </div>
   );
 };
 
 // Droppable zone component for the bottom of columns (add to end)
-const ColumnBottomDropZone = ({ columnId }: { columnId: number }) => {
+const ColumnBottomDropZone = ({ columnId, dragOverInfo, activeDragData }: { 
+  columnId: number;
+  dragOverInfo?: { columnId: number; taskId?: number; position?: 'before' | 'after' } | null;
+  activeDragData?: any;
+}) => {
   const { isOver, setNodeRef } = useDroppable({
     id: getColumnBottomDropId(columnId),
   });
   
+  // Check if we're dragging a task from another column over this bottom zone
+  const isFromAnotherColumn = activeDragData && 
+    activeDragData.columnId !== columnId && 
+    isOver;
+  
   return (
     <div 
       ref={setNodeRef}
-      className={`h-20 w-full rounded-lg transition-all duration-200 flex items-center justify-center border-2 ${
-        isOver 
-          ? 'bg-gradient-to-br from-indigo-100 to-purple-100 border-dashed border-indigo-400 scale-105 shadow-lg' 
-          : 'border-transparent hover:bg-gradient-to-br hover:from-indigo-50 hover:to-purple-50 hover:border-dashed hover:border-indigo-300'
+      className={`w-full rounded-lg transition-all duration-200 flex items-center justify-center border-2 ${
+        isOver || isFromAnotherColumn
+          ? 'h-16 bg-gradient-to-br from-indigo-100 to-purple-100 border-dashed border-indigo-400 scale-105 shadow-lg transform' 
+          : 'h-8 border-transparent hover:bg-gradient-to-br hover:from-indigo-50 hover:to-purple-50 hover:border-dashed hover:border-indigo-300'
       }`}
+      style={{
+        // Lower z-index than insertion zones
+        zIndex: isOver || isFromAnotherColumn ? 5 : 1
+      }}
     >
-      {isOver ? (
+      {isOver || isFromAnotherColumn ? (
         <div className="text-sm text-indigo-600 font-medium flex items-center">
           <PlusIcon className="h-5 w-5 mr-2" />
           Release to add to end
+          <div className="flex space-x-1 ml-2">
+            <div className="w-1 h-1 bg-indigo-400 rounded-full animate-pulse"></div>
+            <div className="w-1 h-1 bg-indigo-400 rounded-full animate-pulse" style={{ animationDelay: '0.2s' }}></div>
+            <div className="w-1 h-1 bg-indigo-400 rounded-full animate-pulse" style={{ animationDelay: '0.4s' }}></div>
+          </div>
         </div>
       ) : (
         <div className="text-xs text-slate-400 font-medium opacity-0 group-hover:opacity-100 transition-opacity duration-200">
@@ -252,6 +317,10 @@ const getColumnIdFromDroppableId = (droppableId: string): number | null => {
   const bottomDropMatch = droppableId.match(/^column-bottom-(\d+)$/);
   if (bottomDropMatch) return parseInt(bottomDropMatch[1], 10);
   
+  // Add support for insertion zones
+  const insertionZoneMatch = droppableId.match(/^insertion-zone-(\d+)-(-?\d+)$/);
+  if (insertionZoneMatch) return parseInt(insertionZoneMatch[1], 10);
+  
   return null;
 };
 
@@ -273,6 +342,69 @@ const getEmptyColumnDropId = (columnId: number) => `${EMPTY_COLUMN_DROP_ID_PREFI
 
 // Helper function to create a drop zone ID for the bottom of a column (separate from tasks)
 const getColumnBottomDropId = (columnId: number) => `column-bottom-${columnId}`;
+
+// Helper function to create insertion zone IDs
+const getInsertionZoneId = (columnId: number, afterTaskIndex: number) => `insertion-zone-${columnId}-${afterTaskIndex}`;
+
+// Helper function to parse insertion zone IDs
+const getInsertionZoneInfo = (droppableId: string): { columnId: number; insertAfterIndex: number } | null => {
+  const match = droppableId.match(/^insertion-zone-(\d+)-(-?\d+)$/);
+  if (match) {
+    return {
+      columnId: parseInt(match[1], 10),
+      insertAfterIndex: parseInt(match[2], 10)
+    };
+  }
+  return null;
+};
+
+// Droppable zone component for insertion between tasks
+const InsertionDropZone = ({ columnId, insertAfterIndex, dragOverInfo, activeDragData }: { 
+  columnId: number; 
+  insertAfterIndex: number;
+  dragOverInfo?: { columnId: number; taskId?: number; position?: 'before' | 'after' } | null;
+  activeDragData?: any;
+}) => {
+  const { isOver, setNodeRef } = useDroppable({
+    id: getInsertionZoneId(columnId, insertAfterIndex),
+  });
+  
+  // Check if we're dragging a task from another column over this insertion zone
+  const isFromAnotherColumn = activeDragData && 
+    activeDragData.columnId !== columnId && 
+    isOver;
+  
+  return (
+    <div 
+      ref={setNodeRef}
+      className={`transition-all duration-200 ${
+        isFromAnotherColumn ? 'h-16 z-10' : 'h-2'
+      }`}
+      style={{
+        // Ensure insertion zones have higher z-index when active
+        zIndex: isFromAnotherColumn ? 10 : 1,
+        // Add pointer events to ensure proper drop detection
+        pointerEvents: 'auto'
+      }}
+    >
+      {isFromAnotherColumn && (
+        <div className="h-12 bg-gradient-to-r from-indigo-100 to-purple-100 border-2 border-dashed border-indigo-300 rounded-xl flex items-center justify-center mx-2 my-2 animate-pulse shadow-lg">
+          <div className="flex items-center space-x-2">
+            <div className="w-2 h-2 bg-indigo-400 rounded-full animate-bounce"></div>
+            <span className="text-sm text-indigo-600 font-medium">
+              {activeDragData.title} will be inserted here (position {insertAfterIndex + 2})
+            </span>
+            <div className="flex space-x-1 ml-auto">
+              <div className="w-1 h-1 bg-indigo-400 rounded-full animate-pulse"></div>
+              <div className="w-1 h-1 bg-indigo-400 rounded-full animate-pulse" style={{ animationDelay: '0.2s' }}></div>
+              <div className="w-1 h-1 bg-indigo-400 rounded-full animate-pulse" style={{ animationDelay: '0.4s' }}></div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
 
 const BoardDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -315,6 +447,13 @@ const BoardDetail = () => {
   const [editingTaskTitleValue, setEditingTaskTitleValue] = useState('');
   const [showDeleteTaskDialog, setShowDeleteTaskDialog] = useState(false);
   const [taskToDelete, setTaskToDelete] = useState<number | null>(null);
+  
+  // Add state for tracking drag over positions
+  const [dragOverInfo, setDragOverInfo] = useState<{
+    columnId: number;
+    taskId?: number;
+    position?: 'before' | 'after';
+  } | null>(null);
   
   // Configure sensors for better drag control
   const sensors = useSensors(
@@ -435,6 +574,9 @@ const BoardDetail = () => {
     const { active } = event;
     const activeIdRaw = active.id;
     
+    // Clear any previous drag over info
+    setDragOverInfo(null);
+    
     // Determine the type of drag operation
     const dragType = getDragType(activeIdRaw);
     
@@ -462,20 +604,93 @@ const BoardDetail = () => {
   };
 
   const handleDragOver = (event: DragOverEvent) => {
-    const { over } = event;
+    const { over, active } = event;
     
-    if (!over) {
+    if (!over || !active) {
+      setDragOverInfo(null);
       return;
     }
     
     const overId = String(over.id);
+    const activeId = active.id;
+    const dragType = getDragType(activeId);
+    
+    // Only handle task drag overs
+    if (dragType !== 'task') {
+      setDragOverInfo(null);
+      return;
+    }
+    
     console.log(`[BoardDetail] Dragging over element with ID: ${overId}`);
     
-    // Get column ID from any valid drop target
-    const columnId = getColumnIdFromDroppableId(overId);
-    
-    if (columnId !== null) {
-      console.log(`[BoardDetail] Dragging over column: ${columnId}`);
+    // Check if dragging over another task (for insertion positioning)
+    if (typeof over.id === 'number' || !isNaN(Number(over.id))) {
+      const overTaskId = Number(over.id);
+      
+      // Find which column this task belongs to
+      if (currentBoard?.columns) {
+        for (const column of currentBoard.columns) {
+          if (column.tasks?.some(task => task.id === overTaskId)) {
+            // Check if we're dragging from a different column
+            const activeTaskId = Number(activeId);
+            let sourceColumnId = null;
+            
+            // Find source column
+            for (const sourceCol of currentBoard.columns) {
+              if (sourceCol.tasks?.some(task => task.id === activeTaskId)) {
+                sourceColumnId = sourceCol.id;
+                break;
+              }
+            }
+            
+            // Only show detailed positioning for cross-column drags
+            // For same-column drags, let the sortable context handle it naturally
+            if (sourceColumnId !== column.id) {
+              // For cross-column drags, we'll default to 'after' to ensure consistent behavior
+              // This will place the task after the hovered task
+              setDragOverInfo({
+                columnId: column.id,
+                taskId: overTaskId,
+                position: 'after'
+              });
+            } else {
+              // Same column drag - clear drag over info to let sortable handle it
+              setDragOverInfo(null);
+            }
+            break;
+          }
+        }
+      }
+    } else {
+      // Check if dragging over a column drop zone
+      const columnId = getColumnIdFromDroppableId(overId);
+      
+      if (columnId !== null) {
+        // Check if we're dragging from a different column
+        const activeTaskId = Number(activeId);
+        let sourceColumnId = null;
+        
+        if (currentBoard?.columns) {
+          for (const sourceCol of currentBoard.columns) {
+            if (sourceCol.tasks?.some(task => task.id === activeTaskId)) {
+              sourceColumnId = sourceCol.id;
+              break;
+            }
+          }
+        }
+        
+        // Only show feedback for cross-column drags
+        if (sourceColumnId !== columnId) {
+          setDragOverInfo({
+            columnId: columnId
+          });
+          console.log(`[BoardDetail] Dragging over column: ${columnId}`);
+        } else {
+          setDragOverInfo(null);
+        }
+      } else {
+        setDragOverInfo(null);
+      }
     }
   };
 
@@ -483,7 +698,11 @@ const BoardDetail = () => {
     console.log('[BoardDetail] Drag ended', event);
     const { active, over } = event;
     
+    // Store dragOverInfo before clearing it to use for precise positioning
+    const dropInfo = dragOverInfo;
+    
     setActiveDragData(null);
+    setDragOverInfo(null);
     
     if (!over) {
       console.log('[BoardDetail] No valid drop target');
@@ -496,6 +715,7 @@ const BoardDetail = () => {
     const overString = String(overIdRaw);
     
     console.log(`[BoardDetail] Dropping element with ID ${activeIdRaw} onto element with ID ${overIdRaw}`);
+    console.log(`[BoardDetail] Drop target type check - overString: "${overString}"`);
     
     // Determine if this is a task or column being dragged
     const dragType = getDragType(activeIdRaw);
@@ -503,10 +723,50 @@ const BoardDetail = () => {
     if (dragType === 'task') {
       const taskId = Number(activeIdRaw);
       
-      // Case 1: Dropping on another task (reordering within column or moving to a different column)
+      // PRIORITY 1: Check for insertion zone drops first (highest priority)
+      const insertionInfo = getInsertionZoneInfo(overString);
+      if (insertionInfo) {
+        console.log(`[BoardDetail] ✅ INSERTION ZONE DETECTED: task ${taskId} to column ${insertionInfo.columnId} at position ${insertionInfo.insertAfterIndex + 1}`);
+        await handleTaskDropOnColumn(taskId, insertionInfo.columnId, insertionInfo.insertAfterIndex + 1);
+        return;
+      }
+      
+      // Debug: Check if it matches insertion zone pattern but failed parsing
+      if (overString.includes('insertion-zone-')) {
+        console.log(`[BoardDetail] ⚠️ WARNING: Insertion zone pattern detected but parsing failed: "${overString}"`);
+      }
+      
+      // PRIORITY 2: Use dragOverInfo if available for precise positioning (from visual feedback)
+      if (dropInfo && dropInfo.columnId && dropInfo.taskId && dropInfo.position) {
+        console.log(`[BoardDetail] ✅ DRAG OVER INFO: task ${taskId} to column ${dropInfo.columnId}, ${dropInfo.position} task ${dropInfo.taskId}`);
+        
+        // Find the target task index in the target column
+        let targetIndex = 0;
+        if (currentBoard?.columns) {
+          const targetColumn = currentBoard.columns.find(col => col.id === dropInfo.columnId);
+          if (targetColumn?.tasks) {
+            const targetTaskIndex = targetColumn.tasks.findIndex(task => task.id === dropInfo.taskId);
+            if (targetTaskIndex !== -1) {
+              targetIndex = dropInfo.position === 'before' ? targetTaskIndex : targetTaskIndex + 1;
+            }
+          }
+        }
+        
+        await handleTaskDropOnColumn(taskId, dropInfo.columnId, targetIndex);
+        return;
+      }
+      
+      // PRIORITY 3: Use dragOverInfo for column-only drops (no specific task target)
+      if (dropInfo && dropInfo.columnId && !dropInfo.taskId) {
+        console.log(`[BoardDetail] ✅ COLUMN DROP INFO: task ${taskId} to column ${dropInfo.columnId} at end`);
+        await handleTaskDropOnColumn(taskId, dropInfo.columnId, undefined);
+        return;
+      }
+      
+      // PRIORITY 4: Dropping on another task (reordering within column or moving to a different column)
       if (typeof overIdRaw === 'number' || !isNaN(Number(overIdRaw))) {
         const overTaskId = Number(overIdRaw);
-        console.log(`[BoardDetail] Task ${taskId} dropped on task ${overTaskId}`);
+        console.log(`[BoardDetail] ✅ TASK-ON-TASK DROP: Task ${taskId} dropped on task ${overTaskId}`);
         
         // Find source and target column information
         let sourceColumnId = null;
@@ -542,17 +802,17 @@ const BoardDetail = () => {
           }
         }
         
-        // Case 1A: Moving between columns
+        // Case 4A: Moving between columns
         if (sourceColumnId !== null && targetColumnId !== null && sourceColumnId !== targetColumnId) {
-          console.log(`[BoardDetail] Moving task ${taskId} from column ${sourceColumnId} to column ${targetColumnId} at position ${targetTaskIndex}`);
+          console.log(`[BoardDetail] Cross-column move: task ${taskId} from column ${sourceColumnId} to column ${targetColumnId} at position ${targetTaskIndex}`);
           
           // Use the improved handleTaskDropOnColumn function with proper positioning
           await handleTaskDropOnColumn(taskId, targetColumnId, targetTaskIndex);
         }
-        // Case 1B: Reordering within the same column
+        // Case 4B: Reordering within the same column
         else if (sourceColumnId !== null && sourceColumnId === targetColumnId && 
                 sourceTaskIndex !== -1 && targetTaskIndex !== -1) {
-          console.log(`[BoardDetail] Reordering tasks within column ${sourceColumnId}`);
+          console.log(`[BoardDetail] Same-column reorder: tasks within column ${sourceColumnId}`);
           
           try {
             // Create the reordered array of tasks
@@ -592,22 +852,25 @@ const BoardDetail = () => {
           }
         }
       }
-      // Case 2: Dropping on a column drop zone or empty column
+      // PRIORITY 5: Other column drop zones (lowest priority)
       else {
         const targetColumnId = getColumnIdFromDroppableId(overString);
         
         if (targetColumnId !== null) {
-          console.log(`[BoardDetail] Dropping task ${taskId} on column ${targetColumnId}`);
+          console.log(`[BoardDetail] ⚠️ FALLBACK DROP: task ${taskId} on column ${targetColumnId}`);
           
           // Check if this is a bottom drop zone (should add to end)
           if (overString.startsWith('column-bottom-')) {
-            console.log(`[BoardDetail] Dropping task ${taskId} in bottom drop zone of column ${targetColumnId} - adding to end`);
+            console.log(`[BoardDetail] Bottom drop zone: task ${taskId} to end of column ${targetColumnId}`);
             await handleTaskDropOnColumn(taskId, targetColumnId, undefined);
           } else {
             // For other column drops, add to the end of the column
+            console.log(`[BoardDetail] Generic column drop: task ${taskId} to end of column ${targetColumnId}`);
             await handleTaskDropOnColumn(taskId, targetColumnId, undefined);
           }
           return;
+        } else {
+          console.log(`[BoardDetail] ❌ UNHANDLED DROP: No valid drop target found for "${overString}"`);
         }
       }
     }
@@ -1477,33 +1740,59 @@ const BoardDetail = () => {
                         items={column.tasks?.map(task => task.id) || []} 
                         strategy={verticalListSortingStrategy}
                       >
-                        {column.tasks && column.tasks.map((task) => (
-                          <SortableTask
-                            key={task.id}
-                            id={task.id}
-                            task={{...task, columnId: column.id}}
-                            onClick={() => handleViewTask(task.id)}
-                            onEditTitle={handleEditTaskTitle}
-                            editingTaskTitle={editingTaskTitle}
-                            editingTaskTitleValue={editingTaskTitleValue}
-                            onSaveTitle={handleSaveTaskTitle}
-                            onCancelTitleEdit={handleCancelTaskTitleEdit}
-                            onTitleChange={setEditingTaskTitleValue}
-                            onAssignUser={handleAssignUser}
-                            onDeleteTask={handleDeleteTask}
+                        {/* Insertion zone at the beginning of the column */}
+                        {column.tasks && column.tasks.length > 0 && (
+                          <InsertionDropZone 
+                            columnId={column.id} 
+                            insertAfterIndex={-1} 
+                            dragOverInfo={dragOverInfo} 
+                            activeDragData={activeDragData} 
                           />
+                        )}
+                        
+                        {column.tasks && column.tasks.map((task, index) => (
+                          <div key={`task-container-${task.id}`}>
+                            <SortableTask
+                              key={task.id}
+                              id={task.id}
+                              task={{...task, columnId: column.id}}
+                              onClick={() => handleViewTask(task.id)}
+                              onEditTitle={handleEditTaskTitle}
+                              editingTaskTitle={editingTaskTitle}
+                              editingTaskTitleValue={editingTaskTitleValue}
+                              onSaveTitle={handleSaveTaskTitle}
+                              onCancelTitleEdit={handleCancelTaskTitleEdit}
+                              onTitleChange={setEditingTaskTitleValue}
+                              onAssignUser={handleAssignUser}
+                              onDeleteTask={handleDeleteTask}
+                              dragOverInfo={dragOverInfo}
+                              activeDragData={activeDragData}
+                            />
+                            
+                            {/* Insertion zone after each task (except the last one, as that's handled by bottom drop zone) */}
+                            {index < column.tasks.length - 1 && (
+                              <InsertionDropZone 
+                                columnId={column.id} 
+                                insertAfterIndex={index} 
+                                dragOverInfo={dragOverInfo} 
+                                activeDragData={activeDragData} 
+                              />
+                            )}
+                          </div>
                         ))}
+                        
+                        {/* Remove the old placeholder logic since we now have insertion zones */}
                       </SortableContext>
                       
                       {/* Empty column drop area indicator - visible when column is empty */}
                       {column.tasks?.length === 0 && (
-                        <EmptyColumnDropZone columnId={column.id} />
+                        <EmptyColumnDropZone columnId={column.id} dragOverInfo={dragOverInfo} activeDragData={activeDragData} />
                       )}
                     </ColumnDropZone>
                     
                     {/* Bottom drop zone for adding tasks to end - only show when column has tasks */}
                     {column.tasks && column.tasks.length > 0 && (
-                      <ColumnBottomDropZone columnId={column.id} />
+                      <ColumnBottomDropZone columnId={column.id} dragOverInfo={dragOverInfo} activeDragData={activeDragData} />
                     )}
                     
                     {showNewTaskForm === column.id ? (
