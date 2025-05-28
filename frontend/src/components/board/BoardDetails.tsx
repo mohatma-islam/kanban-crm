@@ -4,7 +4,7 @@ import { DndContext, type DragEndEvent, type DragStartEvent, type DragOverEvent,
 import { SortableContext, arrayMove, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import Select from 'react-select';
-import { EyeIcon, PencilSquareIcon, UserCircleIcon, XMarkIcon, TrashIcon, CheckIcon, MagnifyingGlassIcon, ArrowLeftIcon, Squares2X2Icon, ViewColumnsIcon, PlusIcon, FunnelIcon, SparklesIcon } from '@heroicons/react/24/outline';
+import { EyeIcon, PencilSquareIcon, UserCircleIcon, XMarkIcon, TrashIcon, CheckIcon, MagnifyingGlassIcon, ArrowLeftIcon, Squares2X2Icon, ViewColumnsIcon, PlusIcon, FunnelIcon } from '@heroicons/react/24/outline';
 import useBoardStore from '../../store/boardStore';
 import useTaskStore from '../../store/taskStore';
 import useUserStore from '../../store/userStore';
@@ -212,6 +212,7 @@ const EmptyColumnDropZone = ({ columnId, dragOverInfo, activeDragData }: {
     id: getEmptyColumnDropId(columnId),
   });
   
+  
   // Check if we're dragging a task from another column over this empty column
   const isFromAnotherColumn = activeDragData && 
     activeDragData.columnId !== columnId && 
@@ -246,7 +247,7 @@ const EmptyColumnDropZone = ({ columnId, dragOverInfo, activeDragData }: {
 };
 
 // Droppable zone component for the bottom of columns (add to end)
-const ColumnBottomDropZone = ({ columnId, dragOverInfo, activeDragData }: { 
+/* const ColumnBottomDropZone = ({ columnId, dragOverInfo, activeDragData }: { 
   columnId: number;
   dragOverInfo?: { columnId: number; taskId?: number; position?: 'before' | 'after' } | null;
   activeDragData?: any;
@@ -290,7 +291,7 @@ const ColumnBottomDropZone = ({ columnId, dragOverInfo, activeDragData }: {
       )}
     </div>
   );
-};
+}; */
 
 // Type for react-select options
 interface SelectOption {
@@ -341,7 +342,7 @@ const getColumnDropId = (columnId: number) => `column-drop-${columnId}`;
 const getEmptyColumnDropId = (columnId: number) => `${EMPTY_COLUMN_DROP_ID_PREFIX}${columnId}`;
 
 // Helper function to create a drop zone ID for the bottom of a column (separate from tasks)
-const getColumnBottomDropId = (columnId: number) => `column-bottom-${columnId}`;
+// const getColumnBottomDropId = (columnId: number) => `column-bottom-${columnId}`;
 
 // Helper function to create insertion zone IDs
 const getInsertionZoneId = (columnId: number, afterTaskIndex: number) => `insertion-zone-${columnId}-${afterTaskIndex}`;
@@ -1449,12 +1450,6 @@ const BoardDetail = () => {
     );
   };
 
-  const options = [
-    { value: 'chocolate', label: 'Chocolate' },
-    { value: 'strawberry', label: 'Strawberry' },
-    { value: 'vanilla', label: 'Vanilla' },
-  ];
-  
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap justify-between items-center gap-4">
@@ -1723,12 +1718,12 @@ const BoardDetail = () => {
                   >
                     <div className="flex justify-between items-center mb-4">
                       {editingColumnId === column.id ? (
-                        <div className="flex items-center space-x-3 flex-1 edit-column-input">
+                        <div className="flex-1 edit-column-input">
                           <input
                             type="text"
                             value={editingColumnName}
                             onChange={(e) => setEditingColumnName(e.target.value)}
-                            className="flex-1 px-3 py-2 bg-white/70 backdrop-blur-sm border border-slate-300 rounded-lg text-lg font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200"
+                            className="w-full px-3 py-2 bg-white/70 backdrop-blur-sm border border-slate-300 rounded-lg text-lg font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 mb-3"
                             onKeyDown={(e) => {
                               if (e.key === 'Enter') handleSaveColumnName();
                               if (e.key === 'Escape') handleCancelColumnEdit();
@@ -1737,25 +1732,60 @@ const BoardDetail = () => {
                             tabIndex={0}
                             aria-label="Edit column name"
                           />
-                          <button
-                            onClick={handleSaveColumnName}
-                            className="p-2 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-all duration-200"
-                            tabIndex={0}
-                            title="Save column name"
-                          >
-                            <CheckIcon className="h-5 w-5" />
-                          </button>
-                          <button
-                            onClick={handleCancelColumnEdit}
-                            className="p-2 text-slate-600 hover:text-slate-700 hover:bg-slate-50 rounded-lg transition-all duration-200"
-                            tabIndex={0}
-                            title="Cancel editing"
-                          >
-                            <XMarkIcon className="h-5 w-5" />
-                          </button>
+                          <div className="flex justify-end space-x-2">
+                            <button
+                              onClick={handleSaveColumnName}
+                              className="p-2 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-all duration-200"
+                              tabIndex={0}
+                              title="Save column name"
+                            >
+                              <CheckIcon className="h-5 w-5" />
+                            </button>
+                            <button
+                              onClick={handleCancelColumnEdit}
+                              className="p-2 text-slate-600 hover:text-slate-700 hover:bg-slate-50 rounded-lg transition-all duration-200"
+                              tabIndex={0}
+                              title="Cancel editing"
+                            >
+                              <XMarkIcon className="h-5 w-5" />
+                            </button>
+                          </div>
+                        </div>
+                      ) : showNewTaskForm === column.id ? (
+                        <div className="flex-1">
+                          <form onSubmit={(e) => handleAddTask(column.id, e)} className="space-y-3">
+                            <input
+                              type="text"
+                              value={newTaskTitle}
+                              onChange={(e) => setNewTaskTitle(e.target.value)}
+                              placeholder="Enter task title..."
+                              className="w-full px-3 py-2 bg-white/70 backdrop-blur-sm border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200"
+                              required
+                              autoFocus
+                              tabIndex={0}
+                              aria-label="New task title"
+                            />
+                            <div className="flex justify-end space-x-2">
+                              <button
+                                type="button"
+                                onClick={() => setShowNewTaskForm(null)}
+                                className="px-3 py-1.5 text-xs bg-white/70 backdrop-blur-sm border border-slate-200 text-slate-700 rounded-md hover:bg-white hover:text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-500 transition-all duration-200 font-medium"
+                                tabIndex={0}
+                              >
+                                Cancel
+                              </button>
+                              <button
+                                type="submit"
+                                className="px-3 py-1.5 text-xs bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-md hover:from-indigo-600 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all duration-200 font-medium"
+                                tabIndex={0}
+                              >
+                                Add Task
+                              </button>
+                            </div>
+                          </form>
                         </div>
                       ) : (
-                        <>
+                        <>                        
                           <div className="flex items-center space-x-3 flex-1">
                             <h3 className="text-lg font-semibold text-slate-800">{column.name}</h3>
                             <button
@@ -1773,6 +1803,14 @@ const BoardDetail = () => {
                               title="Delete column"
                             >
                               <TrashIcon className="h-4 w-4" />
+                            </button>  
+                            <button
+                              onClick={() => setShowNewTaskForm(column.id)}
+                              className="p-1.5 text-green-400 hover:text-green-600 hover:bg-green-50 rounded-lg opacity-0 group-hover:opacity-100 transition-all duration-200"
+                              tabIndex={0}
+                              title="Add new task"
+                            >
+                              <PlusIcon className="h-4 w-4" />
                             </button>
                           </div>
                           <span className="text-sm font-medium text-slate-500 bg-gradient-to-r from-slate-100 to-slate-200 px-3 py-1.5 rounded-lg">
@@ -1838,51 +1876,10 @@ const BoardDetail = () => {
                     </ColumnDropZone>
                     
                     {/* Bottom drop zone for adding tasks to end - only show when column has tasks */}
-                    {column.tasks && column.tasks.length > 0 && (
+                    {/* {column.tasks && column.tasks.length > 0 && (
                       <ColumnBottomDropZone columnId={column.id} dragOverInfo={dragOverInfo} activeDragData={activeDragData} />
-                    )}
+                    )} */}
                     
-                    {showNewTaskForm === column.id ? (
-                      <form onSubmit={(e) => handleAddTask(column.id, e)} className="mt-3">
-                        <input
-                          type="text"
-                          value={newTaskTitle}
-                          onChange={(e) => setNewTaskTitle(e.target.value)}
-                          placeholder="Task title"
-                          className="w-full px-4 py-3 bg-white/70 backdrop-blur-sm border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 mb-3 transition-all duration-200"
-                          required
-                          autoFocus
-                          tabIndex={0}
-                          aria-label="New task title"
-                        />
-                        <div className="flex justify-end space-x-3">
-                          <button
-                            type="button"
-                            onClick={() => setShowNewTaskForm(null)}
-                            className="px-4 py-2 bg-white/70 backdrop-blur-sm border border-slate-200 text-slate-700 rounded-lg hover:bg-white hover:text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-500 transition-all duration-200 font-medium"
-                            tabIndex={0}
-                          >
-                            Cancel
-                          </button>
-                          <button
-                            type="submit"
-                            className="px-4 py-2 bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-lg hover:from-indigo-600 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all duration-200 font-medium"
-                            tabIndex={0}
-                          >
-                            Add Task
-                          </button>
-                        </div>
-                      </form>
-                    ) : (
-                      <button
-                        onClick={() => setShowNewTaskForm(column.id)}
-                        className="w-full px-4 py-3 bg-gradient-to-r from-slate-50 to-slate-100 text-slate-700 border border-slate-200 rounded-xl hover:from-indigo-50 hover:to-purple-50 hover:text-indigo-700 hover:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 mt-3 flex items-center justify-center transition-all duration-200 font-medium"
-                        tabIndex={0}
-                      >
-                        <PlusIcon className="h-5 w-5 mr-2" />
-                        Add Task
-                      </button>
-                    )}
                   </div>
                 ))
               ) : currentBoard.columns && currentBoard.columns.length > 0 ? (

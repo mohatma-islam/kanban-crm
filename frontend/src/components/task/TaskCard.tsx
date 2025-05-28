@@ -142,12 +142,12 @@ const TaskCard = ({
     >
       <div className="flex justify-between items-start mb-1">
         {editingTaskTitle === task.id ? (
-          <div className="flex items-center space-x-1 flex-1 mr-2 edit-controls edit-task-title relative">
+          <div className="flex-1 mr-2 edit-controls edit-task-title relative">
             <input
               type="text"
               value={editingTaskTitleValue || ''}
               onChange={(e) => onTitleChange?.(e.target.value)}
-              className="flex-1 px-2 py-1 border border-gray-300 rounded font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-0"
+              className="w-full px-2 py-1 border border-gray-300 rounded font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 mb-2"
               onKeyDown={(e) => {
                 e.stopPropagation();
                 if (e.key === 'Enter') onSaveTitle?.();
@@ -158,7 +158,7 @@ const TaskCard = ({
               tabIndex={0}
               aria-label="Edit task title"
             />
-            <div className="flex items-center space-x-1 flex-shrink-0">
+            <div className="flex justify-end space-x-1">
               <button
                 onClick={(e) => {
                   e.stopPropagation();
