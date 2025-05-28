@@ -53,9 +53,8 @@ const SortableTask = ({
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
-    opacity: isDragging ? 0.5 : 1,
-    zIndex: isDragging ? 1 : 0,
-    boxShadow: isDragging ? '0px 5px 15px rgba(0, 0, 0, 0.2)' : 'none',
+    opacity: isDragging ? 0.3 : 1,
+    zIndex: isDragging ? 1000 : 1,
   };
   
   const handleTaskClick = (e: React.MouseEvent) => {
@@ -66,56 +65,63 @@ const SortableTask = ({
       return;
     }
     
-    // Check if the click target is a button or input (for inline editing)
+    // Check if the click target is a button, input, or interactive element
     const target = e.target as HTMLElement;
-    if (target.closest('button') || target.closest('input') || target.closest('.edit-controls') || target.closest('.assignee-dropdown')) {
+    if (target.closest('button') || 
+        target.closest('input') || 
+        target.closest('.edit-controls') || 
+        target.closest('.assignee-dropdown')) {
       e.stopPropagation();
       return;
     }
     
-    // Add a small delay to ensure this isn't part of a drag operation
-    setTimeout(() => {
-      if (!isDragging) {
-        onClick();
-      }
-    }, 25); // Reduced delay for better responsiveness
+    // Call the onClick handler for opening the modal
+    onClick();
   };
   
   return (
     <div 
       ref={setNodeRef} 
       style={style} 
-      className={`${isDragging ? 'cursor-grabbing' : 'cursor-grab'} transition-shadow duration-200`}
+      className={`${isDragging ? 'cursor-grabbing' : 'cursor-grab hover:cursor-grab'}
+       transition-all duration-200
+       hover:border-indigo-600 hover:border-dashed
+       hover:rounded-lg bg-white/95 backdrop-blur-sm
+       border-2 border-transparent
+       ${isDragging ? 'shadow-2xl border-indigo-300' : ''}
+      `}
+      {...attributes} 
+      {...listeners}
+      onClick={handleTaskClick}
     >
-      <div 
-        {...attributes} 
-        {...listeners}
-        onClick={handleTaskClick}
-      >
-        <TaskCard 
-          task={task} 
-          onClick={() => {}}
-          onEditTitle={onEditTitle}
-          editingTaskTitle={editingTaskTitle}
-          editingTaskTitleValue={editingTaskTitleValue}
-          onSaveTitle={onSaveTitle}
-          onCancelTitleEdit={onCancelTitleEdit}
-          onTitleChange={onTitleChange}
-          onAssignUser={onAssignUser}
-          onDeleteTask={onDeleteTask}
-        />
-      </div>
+      <TaskCard 
+        task={task} 
+        onClick={() => {}} // Let the wrapper handle clicks
+        onEditTitle={onEditTitle}
+        editingTaskTitle={editingTaskTitle}
+        editingTaskTitleValue={editingTaskTitleValue}
+        onSaveTitle={onSaveTitle}
+        onCancelTitleEdit={onCancelTitleEdit}
+        onTitleChange={onTitleChange}
+        onAssignUser={onAssignUser}
+        onDeleteTask={onDeleteTask}
+      />
     </div>
   );
 };
 
 const DraggableTaskOverlay = ({ task }: { task: any }) => {
   return (
-    <div className="bg-white/95 backdrop-blur-sm rounded-xl shadow-2xl p-4 cursor-grabbing opacity-95 w-72 border border-slate-200/60" style={{ boxShadow: '0px 20px 40px rgba(0, 0, 0, 0.15)' }}>
+    <div 
+      className="bg-white rounded-xl shadow-2xl p-4 cursor-grabbing opacity-90 w-72 border-2 border-indigo-300 transform rotate-3 scale-105" 
+      style={{ 
+        boxShadow: '0px 25px 50px rgba(0, 0, 0, 0.25), 0px 0px 0px 1px rgba(99, 102, 241, 0.1)' 
+      }}
+    >
       <div className="flex justify-between items-start mb-2">
-        <h4 className="font-semibold text-slate-800">{task.title}</h4>
+        <h4 className="font-semibold text-slate-800 truncate pr-2">{task.title}</h4>
         {task.user && (
-          <div className="w-8 h-8 bg-gradient-to-br from-indigo-400 to-purple-500 text-white rounded-full flex items-center justify-center text-sm font-medium shadow-sm">
+          <div className="w-8 h-8 bg-gradient-to-br from-indigo-400 to-purple-500 text-white rounded-full flex items-center justify-center text-sm font-medium shadow-sm flex-shrink-0">
             {task.user.name.split(' ').map((part: string) => part.charAt(0)).join('').toUpperCase()}
           </div>
         )}
@@ -124,6 +130,17 @@ const DraggableTaskOverlay = ({ task }: { task: any }) => {
       {task.description && (
         <p className="text-slate-600 text-sm mb-2 line-clamp-2">{task.description}</p>
       )}
+      
+      <div className="flex items-center justify-between">
+        <span className="text-xs text-indigo-600 bg-indigo-50 px-2 py-1 rounded-full font-medium">
+          Moving...
+        </span>
+        <div className="flex space-x-1">
+          <div className="w-2 h-2 bg-indigo-400 rounded-full animate-pulse"></div>
+          <div className="w-2 h-2 bg-indigo-400 rounded-full animate-pulse" style={{ animationDelay: '0.2s' }}></div>
+          <div className="w-2 h-2 bg-indigo-400 rounded-full animate-pulse" style={{ animationDelay: '0.4s' }}></div>
+        </div>
+      </div>
     </div>
   );
 };
@@ -137,17 +154,19 @@ const ColumnDropZone = ({ columnId, children, isEmpty }: { columnId: number; chi
   return (
     <div 
       ref={setNodeRef}
-      className={`space-y-3 mb-3 flex-1 min-h-[120px] ${
+      className={`flex-1 min-h-[120px] ${
         isEmpty ? 'border-2 border-dashed' : ''
       } ${isOver 
-          ? 'border-indigo-400 border-opacity-80 bg-gradient-to-br from-indigo-50 to-purple-50' 
+          ? 'border-2 border-indigo-400 border-opacity-80 bg-gradient-to-br from-indigo-50 to-purple-50 rounded-xl' 
           : isEmpty 
             ? 'border-slate-300 border-opacity-50 hover:border-indigo-300 hover:border-opacity-70'
             : ''
         } 
-        rounded-xl p-1 transition-all duration-200`}
+        rounded-xl p-1 transition-all duration-200 ${isOver && !isEmpty ? 'shadow-lg' : ''}`}
     >
-      {children}
+      <div className="space-y-3">
+        {children}
+      </div>
     </div>
   );
 };
@@ -163,11 +182,47 @@ const EmptyColumnDropZone = ({ columnId }: { columnId: number }) => {
       ref={setNodeRef}
       className={`h-24 border-2 border-dashed rounded-xl flex items-center justify-center text-sm font-medium transition-all duration-200
         ${isOver 
-          ? 'border-indigo-400 bg-gradient-to-br from-indigo-50 to-purple-50 text-indigo-600' 
+          ? 'border-indigo-400 bg-gradient-to-br from-indigo-50 to-purple-50 text-indigo-600 scale-105 shadow-lg' 
           : 'border-slate-300 hover:border-indigo-400 hover:bg-gradient-to-br hover:from-indigo-50 hover:to-purple-50 text-slate-400 hover:text-indigo-600'
         }`}
     >
-      Drop task here
+      <div className="flex flex-col items-center">
+        <div className={`w-8 h-8 rounded-full flex items-center justify-center mb-1 ${
+          isOver ? 'bg-indigo-100' : 'bg-slate-100'
+        }`}>
+          <PlusIcon className="h-5 w-5" />
+        </div>
+        <span>{isOver ? 'Release to drop' : 'Drop task here'}</span>
+      </div>
+    </div>
+  );
+};
+
+// Droppable zone component for the bottom of columns (add to end)
+const ColumnBottomDropZone = ({ columnId }: { columnId: number }) => {
+  const { isOver, setNodeRef } = useDroppable({
+    id: getColumnBottomDropId(columnId),
+  });
+  
+  return (
+    <div 
+      ref={setNodeRef}
+      className={`h-20 w-full rounded-lg transition-all duration-200 flex items-center justify-center border-2 ${
+        isOver 
+          ? 'bg-gradient-to-br from-indigo-100 to-purple-100 border-dashed border-indigo-400 scale-105 shadow-lg' 
+          : 'border-transparent hover:bg-gradient-to-br hover:from-indigo-50 hover:to-purple-50 hover:border-dashed hover:border-indigo-300'
+      }`}
+    >
+      {isOver ? (
+        <div className="text-sm text-indigo-600 font-medium flex items-center">
+          <PlusIcon className="h-5 w-5 mr-2" />
+          Release to add to end
+        </div>
+      ) : (
+        <div className="text-xs text-slate-400 font-medium opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+          Drop here to add to end
+        </div>
+      )}
     </div>
   );
 };
@@ -193,6 +248,10 @@ const getColumnIdFromDroppableId = (droppableId: string): number | null => {
   const columnMatch = droppableId.match(/^column-(\d+)$/);
   if (columnMatch) return parseInt(columnMatch[1], 10);
   
+  // Add support for bottom drop zone
+  const bottomDropMatch = droppableId.match(/^column-bottom-(\d+)$/);
+  if (bottomDropMatch) return parseInt(bottomDropMatch[1], 10);
+  
   return null;
 };
 
@@ -211,6 +270,9 @@ const getColumnDropId = (columnId: number) => `column-drop-${columnId}`;
 
 // Helper function to create a drop zone ID for an empty column
 const getEmptyColumnDropId = (columnId: number) => `${EMPTY_COLUMN_DROP_ID_PREFIX}${columnId}`;
+
+// Helper function to create a drop zone ID for the bottom of a column (separate from tasks)
+const getColumnBottomDropId = (columnId: number) => `column-bottom-${columnId}`;
 
 const BoardDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -257,11 +319,11 @@ const BoardDetail = () => {
   // Configure sensors for better drag control
   const sensors = useSensors(
     useSensor(PointerSensor, {
-      // Lower activation constraint for better drag detection
+      // Improve activation constraint to distinguish between clicks and drags
       activationConstraint: {
-        distance: 5, // Reduced distance for better responsiveness
-        tolerance: 3, // Reduced tolerance
-        delay: 50 // Reduced delay for better responsiveness
+        distance: 8, // Increased distance - user needs to drag 8px before it starts dragging
+        tolerance: 5, // Tolerance for direction changes
+        delay: 100 // Small delay to distinguish from quick clicks
       },
     })
   );
@@ -441,24 +503,7 @@ const BoardDetail = () => {
     if (dragType === 'task') {
       const taskId = Number(activeIdRaw);
       
-      // Get target column ID from any valid drop target type
-      const targetColumnId = getColumnIdFromDroppableId(overString);
-      
-      if (targetColumnId !== null) {
-        // Calculate insertion index for proper positioning
-        let insertIndex: number | undefined = undefined;
-        
-        // If dropping on the column drop zone, find the position
-        if (overString.startsWith('column-drop-') || overString.startsWith('empty-column-')) {
-          // For column drops, add to the end (this will be handled by the default case in handleTaskDropOnColumn)
-          insertIndex = undefined;
-        }
-        
-        await handleTaskDropOnColumn(taskId, targetColumnId, insertIndex);
-        return;
-      }
-      
-      // Case: Dropping on another task (reordering within column or moving to a different column)
+      // Case 1: Dropping on another task (reordering within column or moving to a different column)
       if (typeof overIdRaw === 'number' || !isNaN(Number(overIdRaw))) {
         const overTaskId = Number(overIdRaw);
         console.log(`[BoardDetail] Task ${taskId} dropped on task ${overTaskId}`);
@@ -497,14 +542,14 @@ const BoardDetail = () => {
           }
         }
         
-        // Case 2A: Moving between columns
+        // Case 1A: Moving between columns
         if (sourceColumnId !== null && targetColumnId !== null && sourceColumnId !== targetColumnId) {
           console.log(`[BoardDetail] Moving task ${taskId} from column ${sourceColumnId} to column ${targetColumnId} at position ${targetTaskIndex}`);
           
           // Use the improved handleTaskDropOnColumn function with proper positioning
           await handleTaskDropOnColumn(taskId, targetColumnId, targetTaskIndex);
         }
-        // Case 2B: Reordering within the same column
+        // Case 1B: Reordering within the same column
         else if (sourceColumnId !== null && sourceColumnId === targetColumnId && 
                 sourceTaskIndex !== -1 && targetTaskIndex !== -1) {
           console.log(`[BoardDetail] Reordering tasks within column ${sourceColumnId}`);
@@ -545,6 +590,24 @@ const BoardDetail = () => {
             // Revert to server state on error
             if (boardId) fetchBoard(boardId);
           }
+        }
+      }
+      // Case 2: Dropping on a column drop zone or empty column
+      else {
+        const targetColumnId = getColumnIdFromDroppableId(overString);
+        
+        if (targetColumnId !== null) {
+          console.log(`[BoardDetail] Dropping task ${taskId} on column ${targetColumnId}`);
+          
+          // Check if this is a bottom drop zone (should add to end)
+          if (overString.startsWith('column-bottom-')) {
+            console.log(`[BoardDetail] Dropping task ${taskId} in bottom drop zone of column ${targetColumnId} - adding to end`);
+            await handleTaskDropOnColumn(taskId, targetColumnId, undefined);
+          } else {
+            // For other column drops, add to the end of the column
+            await handleTaskDropOnColumn(taskId, targetColumnId, undefined);
+          }
+          return;
         }
       }
     }
@@ -613,8 +676,8 @@ const BoardDetail = () => {
       return;
     }
     
-    // Only move if it's a different column
-    if (sourceColumnId !== null && sourceColumnId !== targetColumnId) {
+    // Only move if it's a different column or if we're reordering within the same column
+    if (sourceColumnId !== null && (sourceColumnId !== targetColumnId || insertIndex !== undefined)) {
       try {
         // Create an updated version of the board for immediate UI update
         const updatedBoard = { ...currentBoard } as any;
@@ -653,8 +716,10 @@ const BoardDetail = () => {
                 // Insert the task at the specified position or at the end
                 if (insertIndex !== undefined && insertIndex >= 0 && insertIndex <= column.tasks.length) {
                   column.tasks.splice(insertIndex, 0, taskToMove);
+                  console.log(`[BoardDetail] Inserted task at position ${insertIndex}`);
                 } else {
                   column.tasks.push(taskToMove);
+                  console.log(`[BoardDetail] Added task to end of column`);
                 }
                 break;
               }
@@ -676,7 +741,7 @@ const BoardDetail = () => {
           useBoardStore.setState({ currentBoard: updatedBoard });
         }
         
-        // Calculate the order for the server based on the position
+        // Calculate the order for the server based on the final position
         let order = 0;
         if (updatedBoard?.columns) {
           const targetColumn = updatedBoard.columns.find((col: any) => col.id === targetColumnId);
@@ -701,7 +766,7 @@ const BoardDetail = () => {
         if (boardId) fetchBoard(boardId);
       }
     } else {
-      console.log(`[BoardDetail] Skip moving task - source column (${sourceColumnId}) is the same as target column (${targetColumnId}) or source not found`);
+      console.log(`[BoardDetail] Skip moving task - source column (${sourceColumnId}) is the same as target column (${targetColumnId}) and no position change or source not found`);
     }
   };
   
@@ -1340,7 +1405,7 @@ const BoardDetail = () => {
                   <div
                     key={column.id}
                     id={`column-${column.id}`}
-                    className="w-80 rounded-2xl p-5 flex flex-col bg-white/80 backdrop-blur-sm border border-slate-200/60 shadow-sm hover:shadow-lg transition-all duration-300 group"
+                    className={`w-80 rounded-2xl p-5 flex flex-col bg-white/80 backdrop-blur-sm border border-slate-200/60 shadow-sm hover:shadow-lg transition-all duration-300 group relative`}
                     data-column-id={column.id}
                     data-column-name={column.name}
                     data-droppable="true"
@@ -1435,6 +1500,11 @@ const BoardDetail = () => {
                         <EmptyColumnDropZone columnId={column.id} />
                       )}
                     </ColumnDropZone>
+                    
+                    {/* Bottom drop zone for adding tasks to end - only show when column has tasks */}
+                    {column.tasks && column.tasks.length > 0 && (
+                      <ColumnBottomDropZone columnId={column.id} />
+                    )}
                     
                     {showNewTaskForm === column.id ? (
                       <form onSubmit={(e) => handleAddTask(column.id, e)} className="mt-3">
