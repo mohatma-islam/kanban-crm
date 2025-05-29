@@ -1,11 +1,23 @@
 import { useEffect, useState } from 'react';
-import { useForm } from 'react-hook-form';
-import { PencilIcon, TrashIcon, XMarkIcon, CheckIcon } from '@heroicons/react/24/outline';
+import { useForm, Controller } from 'react-hook-form';
+import { 
+  PencilIcon, 
+  TrashIcon, 
+  XMarkIcon, 
+  CheckIcon, 
+  ChatBubbleLeftRightIcon,
+  DocumentTextIcon,
+  CalendarDaysIcon,
+  UserIcon,
+  BuildingOfficeIcon,
+  ChatBubbleOvalLeftEllipsisIcon
+} from '@heroicons/react/24/outline';
 import useTaskStore from '../../store/taskStore';
 import useCustomerStore from '../../store/customerStore';
 import useUserStore from '../../store/userStore';
 import useAuthStore from '../../store/authStore';
 import { ConfirmationDialog } from '../common';
+import Select from 'react-select';
 
 interface TaskModalProps {
   taskId: number;
@@ -19,6 +31,11 @@ interface TaskUpdateData {
   customer_id: string;
   user_id: string;
   due_date: string;
+}
+
+interface SelectOption {
+  value: string;
+  label: string;
 }
 
 const TaskModal = ({ taskId, onClose, initialEditMode = false }: TaskModalProps) => {
@@ -35,9 +52,51 @@ const TaskModal = ({ taskId, onClose, initialEditMode = false }: TaskModalProps)
   const [confirmDeleteComment, setConfirmDeleteComment] = useState(false);
   const [commentToDelete, setCommentToDelete] = useState<number | null>(null);
   
-  const { register, handleSubmit, reset, formState: { errors } } = useForm<TaskUpdateData>();
+  const { register, handleSubmit, reset, control, formState: { errors } } = useForm<TaskUpdateData>();
   
-  // console.log(customers);
+  // Prepare options for react-select
+  const userOptions: SelectOption[] = [
+    { value: '', label: 'Unassigned' },
+    ...users.map(user => ({ value: user.id.toString(), label: user.name }))
+  ];
+  
+  const customerOptions: SelectOption[] = [
+    { value: '', label: 'None' },
+    ...customers.map(customer => ({ value: customer.id.toString(), label: customer.name }))
+  ];
+  
+  // Custom styles for react-select
+  const selectStyles = {
+    control: (provided: any) => ({
+      ...provided,
+      minHeight: '48px',
+      border: '1px solid rgb(203 213 225)',
+      borderRadius: '12px',
+      backgroundColor: 'rgba(255, 255, 255, 0.7)',
+      backdropFilter: 'blur(4px)',
+      '&:hover': {
+        borderColor: 'rgb(203 213 225)',
+      },
+      '&:focus-within': {
+        borderColor: 'rgb(99 102 241)',
+        boxShadow: '0 0 0 2px rgba(99, 102, 241, 0.2)',
+      },
+    }),
+    menu: (provided: any) => ({
+      ...provided,
+      borderRadius: '12px',
+      border: '1px solid rgb(226 232 240)',
+      boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
+    }),
+    option: (provided: any, state: any) => ({
+      ...provided,
+      backgroundColor: state.isFocused ? 'rgb(243 244 246)' : 'white',
+      color: 'rgb(15 23 42)',
+      '&:hover': {
+        backgroundColor: 'rgb(243 244 246)',
+      },
+    }),
+  };
 
   useEffect(() => {
     fetchTask(taskId);
@@ -258,40 +317,44 @@ const TaskModal = ({ taskId, onClose, initialEditMode = false }: TaskModalProps)
                   <label htmlFor="user_id" className="block text-sm font-semibold text-slate-700 mb-2">
                     Assignee
                   </label>
-                  <select
-                    id="user_id"
-                    {...register('user_id')}
-                    className="w-full px-4 py-3 border border-slate-300 rounded-xl bg-white/70 backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200"
-                    tabIndex={0}
-                    aria-label="Assignee"
-                  >
-                    <option value="">Unassigned</option>
-                    {users.map((user) => (
-                      <option key={user.id} value={user.id.toString()}>
-                        {user.name}
-                      </option>
-                    ))}
-                  </select>
+                  <Controller
+                    name="user_id"
+                    control={control}
+                    render={({ field }) => (
+                      <Select<SelectOption>
+                        value={userOptions.find(option => option.value === field.value) || null}
+                        onChange={(selectedOption) => field.onChange(selectedOption?.value || '')}
+                        options={userOptions}
+                        styles={selectStyles}
+                        placeholder="Select assignee..."
+                        isClearable
+                        tabIndex={0}
+                        aria-label="Assignee"
+                      />
+                    )}
+                  />
                 </div>
                 
                 <div>
                   <label htmlFor="customer_id" className="block text-sm font-semibold text-slate-700 mb-2">
                     Customer
                   </label>
-                  <select
-                    id="customer_id"
-                    {...register('customer_id')}
-                    className="w-full px-4 py-3 border border-slate-300 rounded-xl bg-white/70 backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200"
-                    tabIndex={0}
-                    aria-label="Customer"
-                  >
-                    <option value="">None</option>
-                    {customers.map((customer) => (
-                      <option key={customer.id} value={customer.id.toString()}>
-                        {customer.name}
-                      </option>
-                    ))}
-                  </select>
+                  <Controller
+                    name="customer_id"
+                    control={control}
+                    render={({ field }) => (
+                      <Select<SelectOption>
+                        value={customerOptions.find(option => option.value === field.value) || null}
+                        onChange={(selectedOption) => field.onChange(selectedOption?.value || '')}
+                        options={customerOptions}
+                        styles={selectStyles}
+                        placeholder="Select customer..."
+                        isClearable
+                        tabIndex={0}
+                        aria-label="Customer"
+                      />
+                    )}
+                  />
                 </div>
               </div>
               
@@ -349,9 +412,7 @@ const TaskModal = ({ taskId, onClose, initialEditMode = false }: TaskModalProps)
               <div className="bg-white/70 backdrop-blur-sm rounded-xl p-6 border border-slate-200/60 shadow-sm">
                 <div className="flex items-center mb-3">
                   <div className="w-10 h-10 bg-gradient-to-br from-indigo-400 to-purple-500 rounded-xl flex items-center justify-center mr-3">
-                    <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                    </svg>
+                    <DocumentTextIcon className="w-5 h-5 text-white" />
                   </div>
                   <p className="text-sm font-semibold text-slate-600 uppercase tracking-wide">Status</p>
                 </div>
@@ -361,9 +422,7 @@ const TaskModal = ({ taskId, onClose, initialEditMode = false }: TaskModalProps)
               <div className="bg-white/70 backdrop-blur-sm rounded-xl p-6 border border-slate-200/60 shadow-sm">
                 <div className="flex items-center mb-3">
                   <div className="w-10 h-10 bg-gradient-to-br from-emerald-400 to-teal-500 rounded-xl flex items-center justify-center mr-3">
-                    <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                    </svg>
+                    <CalendarDaysIcon className="w-5 h-5 text-white" />
                   </div>
                   <p className="text-sm font-semibold text-slate-600 uppercase tracking-wide">Due Date</p>
                 </div>
@@ -377,9 +436,7 @@ const TaskModal = ({ taskId, onClose, initialEditMode = false }: TaskModalProps)
               <div className="bg-white/70 backdrop-blur-sm rounded-xl p-6 border border-slate-200/60 shadow-sm">
                 <div className="flex items-center mb-3">
                   <div className="w-10 h-10 bg-gradient-to-br from-blue-400 to-indigo-500 rounded-xl flex items-center justify-center mr-3">
-                    <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                    </svg>
+                    <UserIcon className="w-5 h-5 text-white" />
                   </div>
                   <p className="text-sm font-semibold text-slate-600 uppercase tracking-wide">Assigned To</p>
                 </div>
@@ -400,9 +457,7 @@ const TaskModal = ({ taskId, onClose, initialEditMode = false }: TaskModalProps)
               <div className="bg-white/70 backdrop-blur-sm rounded-xl p-6 border border-slate-200/60 shadow-sm">
                 <div className="flex items-center mb-3">
                   <div className="w-10 h-10 bg-gradient-to-br from-orange-400 to-red-500 rounded-xl flex items-center justify-center mr-3">
-                    <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                    </svg>
+                    <BuildingOfficeIcon className="w-5 h-5 text-white" />
                   </div>
                   <p className="text-sm font-semibold text-slate-600 uppercase tracking-wide">Customer</p>
                 </div>
@@ -416,9 +471,7 @@ const TaskModal = ({ taskId, onClose, initialEditMode = false }: TaskModalProps)
           <div className="mt-8 pt-8 border-t border-slate-200/60">
             <div className="flex items-center mb-6">
               <div className="w-10 h-10 bg-gradient-to-br from-cyan-400 to-blue-500 rounded-xl flex items-center justify-center mr-3">
-                <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                </svg>
+                <ChatBubbleLeftRightIcon className="w-5 h-5 text-white" />
               </div>
               <h3 className="text-xl font-bold text-slate-900">Comments</h3>
               {currentTask.comments && currentTask.comments.length > 0 && (
@@ -502,9 +555,7 @@ const TaskModal = ({ taskId, onClose, initialEditMode = false }: TaskModalProps)
               ) : (
                 <div className="text-center py-12">
                   <div className="w-16 h-16 bg-gradient-to-br from-slate-100 to-slate-200 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                    <svg className="w-8 h-8 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                    </svg>
+                    <ChatBubbleOvalLeftEllipsisIcon className="w-8 h-8 text-slate-400" />
                   </div>
                   <p className="text-slate-500 font-medium">No comments yet</p>
                   <p className="text-slate-400 text-sm mt-1">Be the first to add a comment!</p>
